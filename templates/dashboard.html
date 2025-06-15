@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <meta http-equiv="refresh" content="10">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="nav">
+    <h2>Welcome {{ user }} ({{ role }})</h2>
+    <form method="get" action="/search">
+      <input type="text" name="query" placeholder="Search vehicle number">
+      <button type="submit">Search</button>
+    </form>
+    <div class="links">
+      <a href="/log_entry">Log Entry</a>
+      <a href="/not_match">Not Match</a>
+      <a href="/stolen">Stolen DB</a>
+      <a href="/download_csv">Download CSV</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <h3>Log Summary (auto-refresh every 10s)</h3>
+  <canvas id="logChart" width="400" height="200"></canvas>
+  <script>
+    const ctx = document.getElementById('logChart').getContext('2d');
+    const logChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: ['Allowed', 'Stolen', 'Not Match'],
+        datasets: [{
+          label: 'Log Entry Distribution',
+          data: [{{ allowed }}, {{ stolen }}, {{ not_match }}],
+          backgroundColor: ['#4caf50', '#f44336', '#ff9800']
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+  </script>
+</body>
+</html>

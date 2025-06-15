@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search Results</title>
+  <meta http-equiv="refresh" content="10">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h2>Search Results for "{{ query }}"</h2>
+  <table>
+    <tr><th>Source</th><th>Number</th><th>Status</th><th>Time</th></tr>
+    {% for row in results %}
+    <tr>
+      <td>{{ row[0] }}</td>
+      <td>{{ row[1] }}</td>
+      <td>{{ row[2] }}</td>
+      <td>{{ row[3] or 'N/A' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <a href="/dashboard">Back</a>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Not Match</title>
+  <meta http-equiv="refresh" content="10">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h2>Not Match</h2>
+  <table>
+    <tr><th>ID</th><th>RFID</th><th>OCR</th><th>Time</th></tr>
+    {% for row in data %}
+    <tr>
+      <td>{{ row[0] }}</td><td>{{ row[1] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <a href="/dashboard">Back</a>
+</body>
+</html>
