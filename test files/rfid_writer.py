@@ -1,3 +1,4 @@
+import RPi.GPIO as GPIO
 from mfrc522 import SimpleMFRC522
 
 reader = SimpleMFRC522()
@@ -8,5 +9,4 @@ try:
     reader.write(text)
     print(f"? Written to tag: {text}")
 finally:
-    import RPi.GPIO as GPIO
     GPIO.cleanup()

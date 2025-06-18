@@ -12,6 +12,7 @@ import lgpio
 from mfrc522 import SimpleMFRC522
 import smtplib
 from email.message import EmailMessage
+import RPi.GPIO as GPIO
 
 # OLED imports
 import board
@@ -120,72 +121,81 @@ def move_servo(degree):
     lgpio.tx_pwm(chip, SERVO_PIN, 0, 0)
 
 # === Main loop ===
-while True:
-    try:
-        rfid_number = read_rfid()
-        oled_show("Capturing Image")
-        image_path = capture_image()
+try:
+    while True:
+        try:
+            rfid_number = read_rfid()
+            oled_show("Capturing Image")
+            image_path = capture_image()
 
-        oled_show("Detecting Plate")
-        crop_path = crop_plate(image_path)
-        if not crop_path:
-            oled_show("No Plate Found")
-            continue
+            oled_show("Detecting Plate")
+            crop_path = crop_plate(image_path)
+            if not crop_path:
+                oled_show("No Plate Found")
+                continue
 
-        oled_show("Extracting Number")
-        extracted_number = ocr_plate(crop_path)
+            oled_show("Extracting Number")
+            extracted_number = ocr_plate(crop_path)
 
-        rfid_number = rfid_number.strip().replace(" ", "").upper()
-        extracted_number = extracted_number.strip().replace(" ", "").upper()
-        print(f"Comparing RFID: '{rfid_number}' with OCR: '{extracted_number}'")
+            rfid_number = rfid_number.strip().replace(" ", "").upper()
+            extracted_number = extracted_number.strip().replace(" ", "").upper()
+            print(f"Comparing RFID: '{rfid_number}' with OCR: '{extracted_number}'")
 
-        if rfid_number != extracted_number:
-            oled_show("Not Match!")
-            print("Mismatch Detected")
-            activate_buzzer()
-            move_servo(0)
-            send_email("Not Match", f"RFID: {rfid_number}\nOCR: {extracted_number}", crop_path)
+            if rfid_number != extracted_number:
+                oled_show("Not Match!")
+                print("Mismatch Detected")
+                activate_buzzer()
+                move_servo(0)
+                send_email("Not Match", f"RFID: {rfid_number}\nOCR: {extracted_number}", crop_path)
+                conn = sqlite3.connect(DATABASE_PATH)
+                conn.execute("INSERT INTO not_match (rfid_number, extracted_number) VALUES (?, ?)",
+                             (rfid_number, extracted_number))
+                conn.commit()
+                conn.close()
+                time.sleep(5)
+                continue
+
+            oled_show("Checking Stolen DB")
+            print("MATCHED - Checking stolen DB")
             conn = sqlite3.connect(DATABASE_PATH)
-            conn.execute("INSERT INTO not_match (rfid_number, extracted_number) VALUES (?, ?)",
-                         (rfid_number, extracted_number))
-            conn.commit()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM stolen_vehicles WHERE vehicle_number = ?", (rfid_number,))
+            stolen = cursor.fetchone()
             conn.close()
+
+            if stolen:
+                oled_show("Stolen Detected")
+                print("STOLEN DETECTED")
+                activate_buzzer()
+                move_servo(0)
+                send_email("Stolen Detected", f"Vehicle Number: {rfid_number}", crop_path)
+                conn = sqlite3.connect(DATABASE_PATH)
+                conn.execute("INSERT INTO log_entry (vehicle_number, status) VALUES (?, ?)",
+                             (rfid_number, "Stolen"))
+                conn.commit()
+                conn.close()
+            else:
+                oled_show("Vehicle Allowed")
+                print("VEHICLE ALLOWED")
+                move_servo(90)
+                conn = sqlite3.connect(DATABASE_PATH)
+                conn.execute("INSERT INTO log_entry (vehicle_number, status) VALUES (?, ?)",
+                             (rfid_number, "Allowed"))
+                conn.commit()
+                conn.close()
+                time.sleep(5)
+                move_servo(0)
+
             time.sleep(5)
-            continue
 
-        oled_show("Checking Stolen DB")
-        print("MATCHED - Checking stolen DB")
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM stolen_vehicles WHERE vehicle_number = ?", (rfid_number,))
-        stolen = cursor.fetchone()
-        conn.close()
-
-        if stolen:
-            oled_show("Stolen Detected")
-            print("STOLEN DETECTED")
-            activate_buzzer()
-            move_servo(0)
-            send_email("Stolen Detected", f"Vehicle Number: {rfid_number}", crop_path)
-            conn = sqlite3.connect(DATABASE_PATH)
-            conn.execute("INSERT INTO log_entry (vehicle_number, status) VALUES (?, ?)",
-                         (rfid_number, "Stolen"))
-            conn.commit()
-            conn.close()
-        else:
-            oled_show("Vehicle Allowed")
-            print("VEHICLE ALLOWED")
-            move_servo(90)
-            conn = sqlite3.connect(DATABASE_PATH)
-            conn.execute("INSERT INTO log_entry (vehicle_number, status) VALUES (?, ?)",
-                         (rfid_number, "Allowed"))
-            conn.commit()
-            conn.close()
-            time.sleep(5)
-            move_servo(0)
-
-        time.sleep(5)
-
-    except KeyboardInterrupt:
-        oled_show("System Stopped")
-        break
+        except KeyboardInterrupt:
+            oled_show("System Stopped")
+            break
+        except Exception as e:
+            print(f"Error: {e}")
+            oled_show("Error Occurred")
+            time.sleep(2)
+finally:
+    picam2.stop()
+    lgpio.gpiochip_close(chip)
+    # Add any other cleanup as needed
